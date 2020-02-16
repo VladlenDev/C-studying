@@ -11,12 +11,24 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-//	message size
-#define BUFFERSIZE 255
+#define ERROR_CREATE_THREAD -11		//	error result of pthread_create()
+#define ERROR_CJOIN_THREAD -12		//	error result of pthread_join()
+#define SUCCESS 0					//	correct function result
+#define BUFFERSIZE 255				//	message max size
 
-//	error function, prints error message and terminates application
-void error(const char *err_msg);
+//	data for thread functions operating messages
+typedef struct Message
+{
+	char buffer[BUFFERSIZE];
+	int sockfd;
+	int n;
+} Message;
+
+void error(const char *err_msg);	//	error function, prints error message and terminates application
+void * write_message(void *args);	//	thread function, send messages
+void * read_message(void *args);	//	thread function, recieve messages

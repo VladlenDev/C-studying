@@ -19,8 +19,10 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	int sockfd, newsockfd, portnum, n;
-	char buffer[BUFFERSIZE];
+	pthread_t write, read;
+	int status, status_addr;
+	Message mes_args;
+	int sockfd, portnum;
 	struct sockaddr_in serv_addr, cli_addr;
 	socklen_t clilen;
 
@@ -43,35 +45,29 @@ int main(int argc, char *argv[])
 	//	listening and acceptions
 	listen(sockfd, MAXCLIENTS);
 	clilen = sizeof(cli_addr);
-	newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
-	if(newsockfd < 0)
+	mes_args.sockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+	if(mes_args.sockfd < 0)
 		error("Error on accept.");
 
 	//	chatting
-	while(1)
-	{
-		//	reading
-		bzero(buffer, BUFFERSIZE);
-		n = read(newsockfd, buffer, BUFFERSIZE);
-		if(n < 0)
-			error("Error on reading.");
-		printf("Client : %s", buffer);
+	status = pthread_create(&write, NULL, write_message, (void*)&mes_args);
+	if(status != SUCCESS)
+		error("Error on creating thread.");
 
-		//	writing
-		bzero(buffer, BUFFERSIZE);
-		fgets(buffer, BUFFERSIZE, stdin);
-		n = write(newsockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
+	status = pthread_create(&read, NULL, read_message, (void*)&mes_args);
+	if(status != SUCCESS)
+		error("Error on creating thread.");
 
-		//	stop chatting message
-		int i = strncmp("Bye", buffer, 3);
-		if(i == 0)
-			break;
-	}
+	status = pthread_join(write, (void**)&status_addr);
+	if(status != SUCCESS)
+		error("Error on joining thread.");
+
+	status = pthread_join(read, (void**)&status_addr);
+	if(status != SUCCESS)
+		error("Error on joining thread.");
 
 	//	closing
-	close(newsockfd);
+	close(mes_args.sockfd);
 	close(sockfd);
 	return 0;
 }

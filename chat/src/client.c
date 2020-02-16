@@ -12,20 +12,23 @@
 int main(int argc, char *argv[])
 {
 	//	check for arguments
-	if(argc < 3) {
+	if(argc < 3)
+	{
 		fprintf(stderr, "usage %s hostname port\n", argv[0]);
 		exit(1);
 	}
 
-	int sockfd, portnum, n;
+	pthread_t write, read;
+	int status, status_addr;
+	Message mes_args;
+	int portnum;
 	struct sockaddr_in serv_addr;
 	struct hostent *server;
-	char buffer[BUFFERSIZE];
 	
 	//	opening socket
 	portnum = atoi(argv[2]);
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd < 0)
+	mes_args.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(mes_args.sockfd < 0)
 		error("Error opening socket.");
 
 	//	check for server adress
@@ -40,33 +43,27 @@ int main(int argc, char *argv[])
 	serv_addr.sin_port = htons(portnum);
 
 	//	connection
-	if(connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
+	if(connect(mes_args.sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0)
 		error("Connection failed.");
 
 	//	chatting
-	while(1)
-	{
-		//	writing
-		bzero(buffer, BUFFERSIZE);
-		fgets(buffer, BUFFERSIZE, stdin);
-		n = write(sockfd, buffer, strlen(buffer));
-		if(n < 0)
-			error("Error on writing.");
+	status = pthread_create(&write, NULL, write_message, (void*)&mes_args);
+	if(status != SUCCESS)
+		error("Error on creating thread.");
 
-		//	reading
-		bzero(buffer, BUFFERSIZE);
-		n = read(sockfd, buffer, BUFFERSIZE);
-		if(n < 0)
-			error("Error on reading.");
-		printf("Server : %s", buffer);
+	status = pthread_create(&read, NULL, read_message, (void*)&mes_args);
+	if(status != SUCCESS)
+		error("Error on creating thread.");
 
-		//	stop chatting message
-		int i = strncmp("Bye", buffer, 3);
-		if(i == 0)
-			break;
-	}
+	status = pthread_join(write, (void**)&status_addr);
+	if(status != SUCCESS)
+		error("Error on joining thread.");
+
+	status = pthread_join(read, (void**)&status_addr);
+	if(status != SUCCESS)
+		error("Error on joining thread.");
 
 	//	closing
-	close(sockfd);
+	close(mes_args.sockfd);
 	return 0;
 }
